@@ -1,0 +1,38 @@
+#!/bin/sh
+# ~/.xinitrc: full-screen Firefox kiosk showing the pixelping dashboard.
+# Needs: xinit, firefox(-esr), x11-utils (xdpyinfo). Started by bash_profile on tty1.
+URL=${PIXELPING_URL:-http://127.0.0.1:8765/}
+PROFILE="$HOME/.pixelping-kiosk"
+
+# keep the screen on
+xset s off s noblank -dpms 2>/dev/null
+
+# size the window to the whole screen, whatever monitor is attached
+SIZE=$(xdpyinfo | awk '/dimensions:/ { print $2; exit }')
+W=${SIZE%x*} H=${SIZE#*x}
+
+# throwaway profile: dark mode, no first-run pages, no session restore prompts
+mkdir -p "$PROFILE"
+cat > "$PROFILE/user.js" <<'EOF'
+user_pref("ui.systemUsesDarkTheme", 1);
+user_pref("layout.css.prefers-color-scheme.content-override", 0);
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("browser.startup.homepage_override.mstone", "ignore");
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);
+user_pref("app.update.auto", false);
+EOF
+
+# wait up to a minute for the dashboard after boot
+i=0
+while [ $i -lt 30 ] && ! python3 -c "import urllib.request as u; u.urlopen('$URL', timeout=2)" 2>/dev/null; do
+	i=$((i + 1)); sleep 2
+done
+
+# restart the browser if it ever exits or crashes
+while true; do
+	firefox --kiosk --profile "$PROFILE" --no-remote --width "$W" --height "$H" "$URL"
+	sleep 2
+done

@@ -1,0 +1,10 @@
+# Append to the kiosk user's ~/.bash_profile: start X (and deploy/kiosk/xinitrc,
+# copied to ~/.xinitrc) when that user logs in on tty1.
+# For a login without a keyboard, enable getty autologin on tty1:
+#   sudo systemctl edit getty@tty1
+#   [Service]
+#   ExecStart=
+#   ExecStart=-/sbin/agetty --autologin KIOSK_USER --noclear %I $TERM
+if [ -z "${DISPLAY-}" ] && [ "$(tty)" = /dev/tty1 ]; then
+	exec startx
+fi

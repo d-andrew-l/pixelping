@@ -1,0 +1,64 @@
+--- watchdog.py.orig
++++ watchdog.py
+@@ -15,6 +15,7 @@ import re
+ import urllib.error
+ import urllib.request
+ from collections import Counter
++from datetime import datetime
+ from pathlib import Path
+ 
+ 
+@@ -28,6 +29,8 @@ STATE_FILE = Path(env("WATCHDOG_STATE", "/var/lib/log-watchdog/state.json"))
+ OLLAMA_URL = env("WATCHDOG_OLLAMA", "http://127.0.0.1:11434/api/chat")
+ MODEL = env("WATCHDOG_MODEL", "qwen3:8b")
+ NTFY_URL = env("WATCHDOG_NTFY", "")  # empty = print to stdout/journal
++PUSH_URL = env("WATCHDOG_PUSH_URL", "")  # pixelping /api/watchdog; empty = no push
++PUSH_TOKEN = env("WATCHDOG_PUSH_TOKEN", "")
+ ALWAYS_REPORT = env("WATCHDOG_ALWAYS_REPORT", "0") == "1"
+ IGNORE_FILE = Path(env("WATCHDOG_IGNORE", "/etc/log-watchdog/ignore.conf"))
+ KNOWN_NETS = [
+@@ -241,6 +244,28 @@ def notify(title, body, level):
+     urllib.request.urlopen(req, timeout=30).close()
+ 
+ 
++def push_to_pixelping(top, report, summary, ignored):
++    """POST this run's result to the pixelping display. Never raises."""
++    if not PUSH_URL or not PUSH_TOKEN:
++        return
++    payload = {
++        "ts": datetime.now().astimezone().isoformat(timespec="seconds"),
++        "severity": LEVEL_NAME.get(top, "Quiet"),
++        "hosts": list(report),
++        "summary": summary,
++        "rules": [f"{host}: {a['level']}: {a['alert']}" for host, alerts in report.items() for a in alerts],
++        "suppressed": ignored,
++    }
++    try:
++        req = urllib.request.Request(
++            PUSH_URL, data=json.dumps(payload).encode(), method="POST",
++            headers={"Content-Type": "application/json", "Authorization": f"Bearer {PUSH_TOKEN}"},
++        )
++        urllib.request.urlopen(req, timeout=10).close()
++    except Exception as e:  # display is best effort: never fail the run over it
++        print(f"pixelping push failed: {e}")
++
++
+ def main():
+     state = load_state()
+     ignores = load_ignores()
+@@ -260,6 +285,7 @@ def main():
+         raw.append(f"[{host}]")
+         raw += [f"  {LEVEL_NAME[lvl]}: {msg}" for lvl, msg in alerts]
+ 
++    summary = ""  # Low-only runs skip the model, as before
+     if top >= MEDIUM or ALWAYS_REPORT:
+         summary = summarize(report) if report else "All quiet. No alerts this period."
+         hosts = ", ".join(report) or "all hosts"
+@@ -270,6 +296,7 @@ def main():
+         notify(title, summary + rules, top)
+ 
+     save_state(state)  # only after a successful notify, so failures retry next run
++    push_to_pixelping(top, report, summary, ignored)  # last, so it can't delay or block the above
+ 
+ 
+ if __name__ == "__main__":

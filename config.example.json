@@ -1,0 +1,35 @@
+{
+  "_comment": "Copy to config.json and edit. Keys starting with _ are ignored. Full reference: README.md#configuration",
+
+  "_port": "Dashboard port. It always listens on 127.0.0.1 only; reach it from elsewhere with an ssh tunnel.",
+  "port": 8765,
+
+  "_stats_interval": "Seconds between system stats samples (CPU, RAM, disks, services).",
+  "stats_interval": 3,
+
+  "_ping_targets": "Pinged from every host. \"gateway\" means each host's own default gateway.",
+  "ping_targets": ["gateway", "1.1.1.1", "8.8.8.8"],
+
+  "_labels": "Optional display names for plain ping targets. Hosts below are labelled by their ip automatically.",
+  "labels": {"gateway": "Router", "1.1.1.1": "Cloudflare", "8.8.8.8": "Google DNS"},
+
+  "_hosts": "name: unique id. label: display name. ip: LAN address (labels pings and connections to it). ssh: ssh destination or ~/.ssh/config alias; omit to run on this machine. extra_targets: more ping targets for this host only. stats: omit to skip system stats; mounts, services (systemd units) and pm2 (true lists the ssh user's pm2 apps) are read by the agent over ssh, or set url to poll a sysstats.py HTTP agent instead.",
+  "hosts": [
+    {"name": "server", "label": "Server", "ip": "192.168.1.10",
+     "extra_targets": ["192.168.1.20"],
+     "stats": {"mounts": ["/"], "services": ["ssh"], "pm2": false}},
+    {"name": "nas", "label": "NAS", "ssh": "nas", "ip": "192.168.1.20",
+     "stats": {"mounts": ["/", "/srv"], "services": ["nginx", "nfs-server"]}},
+    {"name": "laptop", "label": "Laptop", "ssh": "user@192.168.1.30", "ip": "192.168.1.30"},
+    {"name": "locked-down", "label": "Locked down", "ssh": "locked-down", "ip": "192.168.1.40",
+     "stats": {"url": "http://192.168.1.40:9105/stats"}}
+  ],
+
+  "_watchdog": "Optional. Remove to disable. Listener for POST /api/watchdog. bind: LAN address to listen on. port: default 8766. allow: client IPs allowed to push. token_file: file holding the Bearer token (32+ chars), relative to this config file.",
+  "watchdog": {
+    "bind": "192.168.1.10",
+    "port": 8766,
+    "allow": ["192.168.1.50"],
+    "token_file": "watchdog.token"
+  }
+}

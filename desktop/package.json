@@ -1,0 +1,8 @@
+{
+  "name": "pixelping-desktop",
+  "productName": "PixelPing",
+  "version": "1.0.0",
+  "description": "Desktop window for the pixelping dashboard running on a server, reached over an ssh tunnel.",
+  "main": "main.js",
+  "private": true
+}

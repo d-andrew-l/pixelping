@@ -1,0 +1,14 @@
+#!/usr/sbin/nft -f
+# pixelping stats agent: only the pixelping server may reach tcp/@PORT@.
+# Template: install-agent.sh fills in the @...@ placeholders.
+# Own table, loaded and removed by pixelping-stats.service; never flushes other rules (Docker).
+table inet pixelping_stats
+delete table inet pixelping_stats
+
+table inet pixelping_stats {
+	chain input {
+		type filter hook input priority filter - 5; policy accept;
+		tcp dport @PORT@ ip saddr { @ALLOW_NFT@ } accept
+		tcp dport @PORT@ counter drop
+	}
+}

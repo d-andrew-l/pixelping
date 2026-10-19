@@ -1,0 +1,25 @@
+# Run the pixelping dashboard as a systemd service (an alternative to pm2).
+# Edit User and the paths, then:
+#   sudo cp deploy/systemd/pixelping.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pixelping
+# The user needs passwordless ssh (keys, BatchMode) to every host with "ssh" in config.json.
+[Unit]
+Description=pixelping LAN dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pixelping
+WorkingDirectory=/home/pixelping/pixelping
+ExecStart=/usr/bin/python3 /home/pixelping/pixelping/pixelping.py --config /home/pixelping/pixelping/config.json
+Restart=on-failure
+RestartSec=5
+# logs/ and state/ are written next to pixelping.py; ssh may update ~/.ssh/known_hosts
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/home/pixelping
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

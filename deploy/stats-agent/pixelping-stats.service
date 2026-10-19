@@ -1,0 +1,48 @@
+# Template: install-agent.sh fills in the @...@ placeholders.
+[Unit]
+Description=pixelping read-only stats agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# "+" runs these as root outside the sandbox: firewall table lives and dies with the service
+ExecStartPre=+/usr/sbin/nft -f /opt/pixelping-stats/pixelping-stats.nft
+ExecStart=/usr/bin/python3 /opt/pixelping-stats/sysstats.py --bind @BIND@ --port @PORT@ \
+    --allow @ALLOW@ --mounts @MOUNTS@ --services @SERVICES@
+ExecStopPost=-+/usr/sbin/nft delete table inet pixelping_stats
+Restart=on-failure
+RestartSec=5
+
+# unprivileged system user, no write access anywhere
+# (a static user: with DynamicUser= systemctl could not read service states over D-Bus)
+User=pixelping-stats
+Group=pixelping-stats
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+# second layer behind nftables: the kernel drops other peers for this unit
+IPAddressDeny=any
+IPAddressAllow=@ALLOW@
+
+[Install]
+WantedBy=multi-user.target
